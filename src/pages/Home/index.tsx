@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { MdAddShoppingCart } from 'react-icons/md';
 
 import { ProductList } from './styles';
 import { api } from '../../services/api';
 import { formatPrice } from '../../util/format';
 import { useCart } from '../../hooks/useCart';
-import { ProductItem } from '../../components/ProductItem';
+import { ProductFormatted, ProductItem } from '../../components/ProductItem';
+import { AxiosResponse } from 'axios';
 
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  image: string;
-}
-
-interface ProductFormatted extends Product {
-  priceFormatted: string;
-}
 
 interface CartItemsAmount {
   [key: number]: number;
@@ -24,36 +14,57 @@ interface CartItemsAmount {
 
 const Home = (): JSX.Element => {
   const [products, setProducts] = useState<ProductFormatted[]>([]);
-  // const { addProduct, cart } = useCart();
+  const { addProduct, cart } = useCart();
 
-  // const cartItemsAmount = cart.reduce((sumAmount, product) => {
-  //   // TODO
-  // }, {} as CartItemsAmount)
+  const cartItemsAmount = cart.reduce((sumAmount, product) => {
+    sumAmount[product.id] = product.amount;
+    return sumAmount;
+  }, {} as CartItemsAmount)
 
   useEffect(() => {
     async function loadProducts() {
       api.get("products")
-        .then(response => {
-          setProducts(response.data)
-        })
+        .then(successGetProducts)
+    }
 
+    const hasDataInResponse = (response: AxiosResponse) => response && response.data;
+
+    const formatProducts = (response: AxiosResponse): ProductFormatted[] => {
+      if (hasDataInResponse(response)) {
+        const { data } = response;
+        return data.map((product: ProductFormatted) => {
+          product.priceFormatted = formatPrice(product.price);
+          return product;
+        })
+      }
+      return []
+    }
+
+    const successGetProducts = (response: AxiosResponse) => {
+      const formattedProducts = formatProducts(response);
+      setProducts(formattedProducts);
     }
 
     loadProducts();
   }, []);
 
-  function handleAddProduct(id: number) {
-    // TODO
+
+  const handleAddProduct = (id: number) => {
+    addProduct(id)
   }
 
   const renderProcucts = () => {
     return products.map(product => (
-      <ProductItem key={product.id} title={product.title} image={product.image} price={product.price}></ProductItem>
+      <ProductItem
+        key={product.id}
+        product={product}
+        handleAddProduct={handleAddProduct}
+        cartItemsAmount={cartItemsAmount}></ProductItem>
     ))
   }
 
   return (
-    <ProductList>
+    <ProductList >
       {renderProcucts()}
     </ProductList>
   );
